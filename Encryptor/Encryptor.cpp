@@ -1,5 +1,4 @@
-// Encryptor.cpp : Defines the entry point for the application.
-//
+// Encryptor.cpp : 
 
 #pragma comment(lib, "shlwapi.lib")
 #include "framework.h"
@@ -8,8 +7,13 @@
 #include <Shlwapi.h>
 #include <stdio.h>
 #include <CommCtrl.h>
-#include <fstream>  
 #include <string>
+#include <fstream>
+#include <iostream>
+#include <windowsx.h>
+
+typedef char (*crypto_t)(char, char);
+
 
 #define MAX_LOADSTRING      100
 /***************************************************************************/
@@ -26,13 +30,16 @@
 /***************Vars***************/
 HINSTANCE hInst;                                
 WCHAR szTitle[MAX_LOADSTRING];                  
-WCHAR szWindowClass[MAX_LOADSTRING];            
-HWND fileSourceStatic;              // Source file 
+WCHAR szWindowClass[MAX_LOADSTRING];  
+
+/********************************************/
+
+HWND fileSourceStatic;               // Source file 
 HWND fileDestinationStatic;         // Destination source
 HWND fileNameStatic;                // Static source file
 HWND fileDestinationStaticSource;   // Static destination file
 HWND buttonSouceEllissis;           // Button source file [...]
-HWND buttonDestinationEllissis;     // Button destination file [...]
+HWND buttonDestinationEllipssis;     // Button destination file [...]
 HWND passwordStatic;                // Static name "Password"
 HWND editorPassword;                // Editbox password
 HWND buttonCipher;                  // Cipher hwnd
@@ -40,21 +47,29 @@ HWND buttonDecipher;                // Decipher hwnd
 HWND progress;                      // HWND progressbar
 HWND stopButton;                    // Stop button
 HWND timer;                         // Timer that creating for progress bar
-/******************************************/
+
 HWND source;
 HWND dest;
-HWND fileName;
+BOOL stop = FALSE;
+HMODULE dll;
+
+char sourceName[512] = "Source.txt";
+char destName[512] = "Dest.txt";
+
 /*Forward declaration - prototype*/
 
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
+
 /*************************************************************/
-DWORD CALLBACK FileSource(LPVOID);
-DWORD CALLBACK FileDest(LPVOID);
+DWORD CALLBACK OpenSource(LPVOID);
+DWORD CALLBACK OpenDestination(LPVOID);
 DWORD CALLBACK CreatingWindow(LPVOID);
-DWORD CALLBACK CiphFileClick(LPVOID);
+DWORD CALLBACK Cipher(LPVOID);
+DWORD CALLBACK Decipher(LPVOID);
+DWORD CALLBACK StopButton(LPVOID);
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -159,20 +174,28 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             // Parse the menu selections:
             switch (wmId)
             {
-           
-
             case CMD_CIPHER: {
-                CreateThread(NULL, 0, CiphFileClick, &hWnd, 0, NULL);
+                CreateThread(NULL, 0, Cipher, &hWnd, 0, NULL);
+                break;
+            }
+            case CMD_DECIPHER: {
+                CreateThread(NULL, 0, Decipher, &hWnd, 0, NULL);
+                break;
+            }
+            case CMD_STOP_BUTTON: {
+                CreateThread(NULL, 0, StopButton, &hWnd, 0, NULL);
                 break;
             }
             case CMD_SOURCE: {
-                CreateThread(NULL, 0, FileSource, &hWnd, 0, NULL);
+                CreateThread(NULL, 0, OpenSource, &hWnd, 0, NULL);
                 break;
             }
             case CMD_DESTINATION: {
-                CreateThread(NULL, 0, FileDest, &hWnd, 0, NULL);
+                CreateThread(NULL, 0, OpenDestination, &hWnd, 0, NULL);
                 break;
             }
+
+
             case IDM_ABOUT:
                 DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
                 break;
@@ -221,9 +244,15 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     return (INT_PTR)FALSE;
 }
 
-// creating main window 
+
+
+
+/************************************************************/
+
+
 DWORD CALLBACK CreatingWindow(LPVOID params) {
     HWND hWnd = *((HWND*)params);
+    dll = LoadLibraryW(L"Cipher_DLL.dll");
     // Static name source file
     fileSourceStatic = CreateWindowExW(0, L"Static", L"Source file",
         WS_VISIBLE | WS_CHILD | WS_BORDER | SS_LEFT,
@@ -245,9 +274,9 @@ DWORD CALLBACK CreatingWindow(LPVOID params) {
         WS_VISIBLE | WS_CHILD | WS_BORDER | SS_LEFT,
         10, 130, 70, 23, hWnd, (HMENU)0, hInst, NULL);
     // Editbox password
-    editorPassword = CreateWindowExW(0, L"Edit", L"****************",
-        WS_VISIBLE | WS_CHILD | WS_BORDER,
-        85, 130, 100, 23, hWnd, (HMENU)0, hInst, NULL);
+    editorPassword = CreateWindowExW(0, L"Edit", L"**********************",
+        WS_VISIBLE | WS_CHILD | WS_BORDER | ES_PASSWORD,
+        85, 130, 135, 23, hWnd, (HMENU)0, hInst, NULL);
     // Button Cipher 
     buttonCipher = CreateWindowExW(0, L"Button", L"Cipher",
         WS_VISIBLE | WS_CHILD | WS_BORDER | BS_PUSHBUTTON,
@@ -256,12 +285,12 @@ DWORD CALLBACK CreatingWindow(LPVOID params) {
     buttonDecipher = CreateWindowExW(0, L"Button", L"Decipher",
         WS_VISIBLE | WS_CHILD | WS_BORDER | BS_PUSHBUTTON,
         90, 165, 95, 23, hWnd, (HMENU)CMD_DECIPHER, hInst, NULL);
-    // Button opener source file
+    // Button opener source file 
     buttonSouceEllissis = CreateWindowExW(0, L"Button", L"...",
         WS_VISIBLE | WS_CHILD | WS_BORDER | BS_PUSHBUTTON,
         260, 10, 50, 23, hWnd, (HMENU)CMD_SOURCE, hInst, NULL);
     // Button opener source destination file
-    buttonSouceEllissis = CreateWindowExW(0, L"Button", L"...",
+    buttonDestinationEllipssis = CreateWindowExW(0, L"Button", L"...",
         WS_VISIBLE | WS_CHILD | WS_BORDER | BS_PUSHBUTTON,
         260, 70, 50, 23, hWnd, (HMENU)CMD_DESTINATION, hInst, NULL);
     // Progressbar
@@ -281,14 +310,39 @@ DWORD CALLBACK CreatingWindow(LPVOID params) {
     return 0;
 }
 
-
-char sourceName[512] = "\0";
-char destName[512] = "\0";
-
-DWORD CALLBACK FileDest(LPVOID params) {
+DWORD CALLBACK OpenSource(LPVOID params) {
     HWND hWnd = *((HWND*)params);
 
+    SendMessageW(buttonSouceEllissis, WM_KILLFOCUS, 0, 0);
 
+    OPENFILENAMEA ofn;
+    ZeroMemory(&ofn, sizeof(OPENFILENAMEA));
+    ofn.lStructSize = sizeof(OPENFILENAMEA);
+    ofn.hwndOwner = hWnd;
+    ofn.hInstance = hInst;
+    ofn.lpstrFile = sourceName;
+    ofn.nMaxFile = 512;
+
+
+    if (GetOpenFileNameA(&ofn)) {
+
+
+        SendMessageA(fileNameStatic, WM_SETTEXT, 0, (LPARAM)sourceName);
+    }
+    else {
+
+        SendMessageA(fileNameStatic, WM_SETTEXT, 0, (LPARAM)L"File open error");
+
+    }
+
+
+    return 0;
+
+}
+
+DWORD CALLBACK OpenDestination(LPVOID params) {
+    HWND hWnd = *((HWND*)params);
+    SendMessageW(buttonDestinationEllipssis, WM_KILLFOCUS, 0, 0);
 
     OPENFILENAMEA ofn;
     ZeroMemory(&ofn, sizeof(OPENFILENAMEA));
@@ -299,137 +353,191 @@ DWORD CALLBACK FileDest(LPVOID params) {
     ofn.nMaxFile = 512;
 
     if (GetOpenFileNameA(&ofn)) {
-
         SendMessageA(fileDestinationStaticSource, WM_SETTEXT, 0, (LPARAM)destName);
-
     }
     else {
-
-        SendMessageA(dest, WM_SETTEXT, 0, (LPARAM)L"File open error");
-
+        SendMessageA(fileDestinationStaticSource, WM_SETTEXT, 0, (LPARAM)L"File open error");
     }
 
 
     return 0;
 }
 
-
-
-DWORD CALLBACK FileSource(LPVOID params) {
-    HWND hWnd = *((HWND*)params);
-
-
-
-    OPENFILENAMEA ofn;
-    ZeroMemory(&ofn, sizeof(OPENFILENAMEA));
-    ofn.lStructSize = sizeof(OPENFILENAMEA);
-    ofn.hwndOwner = hWnd;
-    ofn.hInstance = hInst;
-    ofn.lpstrFile = sourceName;
-    ofn.nMaxFile = 512;
-
-    if (GetOpenFileNameA(&ofn)) {
-
-
-        SendMessageA(fileNameStatic, WM_SETTEXT, 0, (LPARAM)sourceName);
+DWORD CALLBACK Cipher(LPVOID params) {
+    crypto_t cipher = (crypto_t)GetProcAddress(dll, "Cipher");
+    if (cipher == NULL)
+    {
+        MessageBoxW(NULL, L"Decipher method not found", L"Error", MB_ICONERROR | MB_OK);
+        FreeLibrary(dll);
+    }
+    if (dll == 0) {
+        MessageBoxW(NULL, L"Error loading DLL", L"DLL Error", MB_ICONERROR | MB_OK);
     }
     else {
+        Button_Enable(buttonSouceEllissis, FALSE);
+        Button_Enable(buttonDestinationEllipssis, FALSE);
+        Button_Enable(buttonCipher, FALSE);
+        Button_Enable(buttonDecipher, FALSE);
+        if (GetWindowTextLengthA(editorPassword) > 16) {
 
-        SendMessageA(fileName, WM_SETTEXT, 0, (LPARAM)L"File open error");
+            MessageBoxA(NULL, "Password should be less than 16 characters", "Password is too big", MB_ICONERROR | MB_OK);
+        }
+        else {
+            FILE* sourceFile;
+            FILE* destFile;
+            sourceFile = fopen(sourceName, "r+");
+            destFile = fopen(destName, "w+");
 
-    }
+            if (sourceFile) {
+                MessageBoxA(NULL, "Source file already exist. Do you agree to overwrite it?", "File already exists", 
+                    MB_ICONWARNING | MB_OK);
+            }
 
-
-    return 0;
-
-}
-
-
-DWORD CALLBACK SaveFileClick(LPVOID param) {
-
-    HWND hWnd = *((HWND*)param);
-
-
-
-    OPENFILENAMEW ofn;
-
-    wchar_t fileName[512] = L"Hello.txt\0";
-
-    ZeroMemory(&ofn, sizeof(OPENFILENAMEW));
-    ofn.lStructSize = sizeof(OPENFILENAMEW);
-    ofn.hwndOwner = hWnd;
-    ofn.hInstance = hInst;
-    ofn.lpstrFile = fileName;
-    ofn.nMaxFile = 512;
-    ofn.lpstrFilter = L"All Files\0*.*\0Text files\0*.txt\0C/C++ code files\0*.cpp;*.c\0\0";
-    ofn.nFilterIndex = 1;
-
-    if (!GetSaveFileNameW(&ofn)) {
-
-        MessageBoxA(NULL, "Invalid file name", "Invalid file name", MB_ICONERROR);
-    }
-    else {
-
-
-        HANDLE hFile = CreateFileW(fileName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-
-        if (hFile) {
-
-            char content[1024];
-            //SendMessageA(editor, WM_GETTEXT, 1024, (LPARAM)content);
-
-            DWORD write;
-            //WriteFile(hFile, content, strnlen_s(content, 1024), &write, NULL);
-
-            if (!WriteFile(hFile, content, strnlen_s(content, 1024), &write, NULL)) {
-
-                MessageBoxA(hWnd, "write error", "write error", MB_OK | MB_ICONWARNING);
-                if (write != strnlen_s(content, 1024)) {
-
-                    MessageBoxA(hWnd, "write error", "write error", MB_OK | MB_ICONWARNING);
-
-
-                }
-
+            if (destFile) {
+                MessageBoxA(NULL, "Destination file already exist. Do you agree to overwrite it?", "File already exists", 
+                    MB_ICONWARNING | MB_OK);
             }
 
 
+            char pass[16];
+            SendMessageA(editorPassword, WM_GETTEXT, 0, (LPARAM)pass);
 
+            int readed = 0;
+            char buffer[1];
+
+            int fSize = 0;
+            fseek(sourceFile, 0, SEEK_END);
+
+            fSize = ftell(sourceFile);
+
+            fseek(sourceFile, 0, SEEK_SET);
+
+            SendMessageW(progress, PBM_SETRANGE, 0, MAKELPARAM(0, fSize));
+            SendMessageW(progress, PBM_SETBARCOLOR, 0, RGB(0, 255, 0));
+
+
+            while (fread(buffer, sizeof(char), 1, sourceFile) == 1) {
+                if (stop == TRUE)
+                {
+                    break;
+                }
+                else {
+                    ++readed;
+                    SendMessageW(progress, PBM_DELTAPOS, 1, 0);
+                    buffer[0] = cipher(buffer[0], pass[readed % strlen(pass)]);
+
+                    fwrite(buffer, sizeof(char), 1, destFile);
+                    Sleep(100);
+                }
+            }
+
+            stop = FALSE;
+            fclose(sourceFile);
+            fclose(destFile);
+            Sleep(2000);
+            SendMessageW(progress, PBM_SETPOS, 0, 0);
+            SendMessageW(progress, PBM_SETBARCOLOR, 0, RGB(0, 255, 0));
+            MessageBoxW(NULL, L"Successful Ciphering", L"Success", MB_OK | MB_ICONASTERISK);
+            Button_Enable(buttonSouceEllissis, TRUE);
+            Button_Enable(buttonDestinationEllipssis, TRUE);
+            Button_Enable(buttonCipher, TRUE);
+            Button_Enable(buttonDecipher, TRUE);
+            
         }
-
-
-
-        CloseHandle(hFile);
-
+        
     }
-
+    
     return 0;
 }
 
-DWORD CALLBACK CiphFileClick(LPVOID param) {
-
-
-    std::ifstream src;
-    std::fstream dest;
-
-    src.open(sourceName, std::fstream::out);
-    dest.open(destName, std::fstream::in);
-
-    std::string buff;
-
-    buff.c_str();
-
-    while (getline(src, buff)) {
-
-
-        dest.write(buff.c_str(), buff.size());
-        //dest.
-
+DWORD CALLBACK Decipher(LPVOID params) {
+    
+    crypto_t decipher = (crypto_t)GetProcAddress(dll, "Decipher");
+    if (decipher == NULL)
+    {
+        MessageBoxW(NULL, L"Decipher method not found", L"Error", MB_ICONERROR | MB_OK);
+        FreeLibrary(dll);
     }
+    Button_Enable(buttonSouceEllissis, FALSE);
+    Button_Enable(buttonDestinationEllipssis, FALSE);
+    Button_Enable(buttonCipher, FALSE);
+    Button_Enable(buttonDecipher, FALSE);
+    stop = FALSE;
+    if (GetWindowTextLengthA(editorPassword) > 16) {
+
+        MessageBoxA(NULL, "Password should be less than 16 characters", "Password is too big", MB_ICONERROR | MB_OK);
+    }
+    else {
+        FILE* sourceFile;
+        sourceFile = fopen(sourceName, "rb+");
+
+        FILE* destFile;
+        destFile = fopen(destName, "wb+");
 
 
+        if (sourceFile) {
+
+            MessageBoxA(NULL, "Source file already exists it will be overwritten", "Source file already exists",
+                MB_ICONWARNING | MB_OK);
+        }
+
+        if (destFile) {
+
+            MessageBoxA(NULL, "Destination file already exists it will be overwritten", "Destination file already exists", 
+                MB_ICONWARNING | MB_OK);
+        }
+
+        char pass[16];
+        SendMessageA(editorPassword, WM_GETTEXT, 0, (LPARAM)pass);
 
 
+        int readed = 0;
+        char buffer[1];
+
+        int currSymbol = 0;
+
+        int fSize = 0;
+        fseek(sourceFile, 0, SEEK_END);
+
+        fSize = ftell(sourceFile);
+
+        fseek(sourceFile, 0, SEEK_SET);
+
+        SendMessageW(progress, PBM_SETRANGE, 0, MAKELPARAM(0, fSize));
+        SendMessageW(progress, PBM_SETBARCOLOR, 0, RGB(0, 255, 0));
+
+        while (fread(buffer, sizeof(char), 1, sourceFile) == 1) {
+            if (stop == TRUE)
+            {
+                break;
+            }
+            else {
+                ++readed;
+                SendMessageW(progress, PBM_DELTAPOS, 1, 0);
+                buffer[0] = decipher(buffer[0], pass[readed % strlen(pass)]);
+                fwrite(buffer, sizeof(char), 1, destFile);
+                Sleep(100);
+            }
+        }
+        stop = FALSE;
+        fclose(sourceFile);
+        fclose(destFile);
+        Sleep(2000);
+        SendMessageW(progress, PBM_SETPOS, 0, 0);
+        SendMessageW(progress, PBM_SETBARCOLOR, 0, RGB(0, 255, 0));
+        MessageBoxW(NULL, L"Successful Deciphering", L"Success", MB_OK | MB_ICONASTERISK);
+        Button_Enable(buttonSouceEllissis, TRUE);
+        Button_Enable(buttonDestinationEllipssis, TRUE);
+        Button_Enable(buttonCipher, TRUE);
+        Button_Enable(buttonDecipher, TRUE);
+    }
+    
     return 0;
+}
 
+DWORD CALLBACK StopButton(LPVOID params) {
+    stop = TRUE;
+    SendMessageW(stopButton, WM_KILLFOCUS, 0, 0);
+    SendMessageW(progress, PBM_SETBARCOLOR, 0, RGB(255, 0, 0));
+    return 0;
 }

@@ -5,6 +5,8 @@ VisualStudioVersion = 16.0.31911.196
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Encryptor", "Encryptor\Encryptor.vcxproj", "{AF56C800-91CB-40A0-AC32-A4B62404366D}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Cipher_DLL", "Cipher_DLL\Cipher_DLL.vcxproj", "{A1B8EA17-4926-4406-B72A-3758F87EEC2B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -21,6 +23,14 @@ Global
 		{AF56C800-91CB-40A0-AC32-A4B62404366D}.Release|x64.Build.0 = Release|x64
 		{AF56C800-91CB-40A0-AC32-A4B62404366D}.Release|x86.ActiveCfg = Release|Win32
 		{AF56C800-91CB-40A0-AC32-A4B62404366D}.Release|x86.Build.0 = Release|Win32
+		{A1B8EA17-4926-4406-B72A-3758F87EEC2B}.Debug|x64.ActiveCfg = Debug|x64
+		{A1B8EA17-4926-4406-B72A-3758F87EEC2B}.Debug|x64.Build.0 = Debug|x64
+		{A1B8EA17-4926-4406-B72A-3758F87EEC2B}.Debug|x86.ActiveCfg = Debug|Win32
+		{A1B8EA17-4926-4406-B72A-3758F87EEC2B}.Debug|x86.Build.0 = Debug|Win32
+		{A1B8EA17-4926-4406-B72A-3758F87EEC2B}.Release|x64.ActiveCfg = Release|x64
+		{A1B8EA17-4926-4406-B72A-3758F87EEC2B}.Release|x64.Build.0 = Release|x64
+		{A1B8EA17-4926-4406-B72A-3758F87EEC2B}.Release|x86.ActiveCfg = Release|Win32
+		{A1B8EA17-4926-4406-B72A-3758F87EEC2B}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
