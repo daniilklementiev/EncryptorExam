@@ -250,7 +250,6 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 /************************************************************/
 
 
-// creating main window 
 DWORD CALLBACK CreatingWindow(LPVOID params) {
     HWND hWnd = *((HWND*)params);
     dll = LoadLibraryW(L"Cipher_DLL.dll");
@@ -276,7 +275,7 @@ DWORD CALLBACK CreatingWindow(LPVOID params) {
         10, 130, 70, 23, hWnd, (HMENU)0, hInst, NULL);
     // Editbox password
     editorPassword = CreateWindowExW(0, L"Edit", L"**********************",
-        WS_VISIBLE | WS_CHILD | WS_BORDER,
+        WS_VISIBLE | WS_CHILD | WS_BORDER | ES_PASSWORD,
         85, 130, 135, 23, hWnd, (HMENU)0, hInst, NULL);
     // Button Cipher 
     buttonCipher = CreateWindowExW(0, L"Button", L"Cipher",
@@ -311,7 +310,6 @@ DWORD CALLBACK CreatingWindow(LPVOID params) {
     return 0;
 }
 
-// Open source file
 DWORD CALLBACK OpenSource(LPVOID params) {
     HWND hWnd = *((HWND*)params);
 
@@ -342,7 +340,6 @@ DWORD CALLBACK OpenSource(LPVOID params) {
 
 }
 
-// Open destination file
 DWORD CALLBACK OpenDestination(LPVOID params) {
     HWND hWnd = *((HWND*)params);
     SendMessageW(buttonDestinationEllipssis, WM_KILLFOCUS, 0, 0);
@@ -388,9 +385,9 @@ DWORD CALLBACK Cipher(LPVOID params) {
         else {
             FILE* sourceFile;
             FILE* destFile;
-
             sourceFile = fopen(sourceName, "r+");
             destFile = fopen(destName, "w+");
+
             if (sourceFile) {
                 MessageBoxA(NULL, "Source file already exist. Do you agree to overwrite it?", "File already exists", 
                     MB_ICONWARNING | MB_OK);
@@ -400,6 +397,7 @@ DWORD CALLBACK Cipher(LPVOID params) {
                 MessageBoxA(NULL, "Destination file already exist. Do you agree to overwrite it?", "File already exists", 
                     MB_ICONWARNING | MB_OK);
             }
+
 
             char pass[16];
             SendMessageA(editorPassword, WM_GETTEXT, 0, (LPARAM)pass);
@@ -439,10 +437,12 @@ DWORD CALLBACK Cipher(LPVOID params) {
             Sleep(2000);
             SendMessageW(progress, PBM_SETPOS, 0, 0);
             SendMessageW(progress, PBM_SETBARCOLOR, 0, RGB(0, 255, 0));
+            MessageBoxW(NULL, L"Successful Ciphering", L"Success", MB_OK | MB_ICONASTERISK);
             Button_Enable(buttonSouceEllissis, TRUE);
             Button_Enable(buttonDestinationEllipssis, TRUE);
             Button_Enable(buttonCipher, TRUE);
             Button_Enable(buttonDecipher, TRUE);
+            
         }
         
     }
@@ -469,10 +469,10 @@ DWORD CALLBACK Decipher(LPVOID params) {
     }
     else {
         FILE* sourceFile;
-        sourceFile = fopen(sourceName, "r+");
+        sourceFile = fopen(sourceName, "rb+");
 
         FILE* destFile;
-        destFile = fopen(destName, "w+");
+        destFile = fopen(destName, "wb+");
 
 
         if (sourceFile) {
@@ -525,6 +525,7 @@ DWORD CALLBACK Decipher(LPVOID params) {
         Sleep(2000);
         SendMessageW(progress, PBM_SETPOS, 0, 0);
         SendMessageW(progress, PBM_SETBARCOLOR, 0, RGB(0, 255, 0));
+        MessageBoxW(NULL, L"Successful Deciphering", L"Success", MB_OK | MB_ICONASTERISK);
         Button_Enable(buttonSouceEllissis, TRUE);
         Button_Enable(buttonDestinationEllipssis, TRUE);
         Button_Enable(buttonCipher, TRUE);
