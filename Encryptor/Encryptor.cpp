@@ -8,6 +8,8 @@
 #include <Shlwapi.h>
 #include <stdio.h>
 #include <CommCtrl.h>
+#include <fstream>  
+#include <string>
 
 #define MAX_LOADSTRING      100
 /***************************************************************************/
@@ -38,8 +40,10 @@ HWND buttonDecipher;                // Decipher hwnd
 HWND progress;                      // HWND progressbar
 HWND stopButton;                    // Stop button
 HWND timer;                         // Timer that creating for progress bar
-
-
+/******************************************/
+HWND source;
+HWND dest;
+HWND fileName;
 /*Forward declaration - prototype*/
 
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -47,10 +51,10 @@ BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 /*************************************************************/
-DWORD CALLBACK OpenFileClick(LPVOID);
-DWORD CALLBACK OpenDestination(LPVOID);
+DWORD CALLBACK FileSource(LPVOID);
+DWORD CALLBACK FileDest(LPVOID);
 DWORD CALLBACK CreatingWindow(LPVOID);
-DWORD CALLBACK Cipher(LPVOID);
+DWORD CALLBACK CiphFileClick(LPVOID);
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -158,15 +162,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
            
 
             case CMD_CIPHER: {
-                CreateThread(NULL, 0, Cipher, &hWnd, 0, NULL);
+                CreateThread(NULL, 0, CiphFileClick, &hWnd, 0, NULL);
                 break;
             }
             case CMD_SOURCE: {
-                CreateThread(NULL, 0, OpenFileClick, &hWnd, 0, NULL);
+                CreateThread(NULL, 0, FileSource, &hWnd, 0, NULL);
                 break;
             }
             case CMD_DESTINATION: {
-                CreateThread(NULL, 0, OpenDestination, &hWnd, 0, NULL);
+                CreateThread(NULL, 0, FileDest, &hWnd, 0, NULL);
                 break;
             }
             case IDM_ABOUT:
@@ -277,171 +281,155 @@ DWORD CALLBACK CreatingWindow(LPVOID params) {
     return 0;
 }
 
-HANDLE file;
-OPENFILENAMEW ofn; // source file structure
 
-// Open source file
-DWORD CALLBACK OpenFileClick(LPVOID params) {
+char sourceName[512] = "\0";
+char destName[512] = "\0";
+
+DWORD CALLBACK FileDest(LPVOID params) {
     HWND hWnd = *((HWND*)params);
-    // killfocus button
-    SendMessageW(buttonSouceEllissis, WM_KILLFOCUS, 0, 0);
-    WCHAR fname[512] = L"Hello.txt\0";
 
-    ZeroMemory(&ofn, sizeof(ofn));
-    ofn.lStructSize = sizeof(ofn);
+
+
+    OPENFILENAMEA ofn;
+    ZeroMemory(&ofn, sizeof(OPENFILENAMEA));
+    ofn.lStructSize = sizeof(OPENFILENAMEA);
     ofn.hwndOwner = hWnd;
     ofn.hInstance = hInst;
-    ofn.lpstrFile = fname;
+    ofn.lpstrFile = destName;
     ofn.nMaxFile = 512;
-    ofn.nMaxFileTitle = sizeof(fname);
-    ofn.lpstrFilter = L"Text files\0*.txt;*.docx;*.pdf\0All files\0*.*\0\0";
-    ofn.nFilterIndex = 1;
-    if (GetOpenFileNameW(&ofn)) {
 
-        PathStripPath(ofn.lpstrFile);
-        
-        file = CreateFileW(fname, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-        if (file == 0)
-        {
-            SendMessageW(fileNameStatic, WM_SETTEXT, 0, (LPARAM)L"File open error");
-        }
-        else {
-            DWORD fSize;
-            fSize = GetFileSize(file, NULL);
-            if (fSize > 0)
-            {
-                SendMessageW(fileNameStatic, WM_SETTEXT, 0, (LPARAM)ofn.lpstrFile);
-            }
-            else {
-                SendMessageW(fileNameStatic, WM_SETTEXT, 0, (LPARAM)"File is empty");
-            }
-            CloseHandle(file);
-        }
+    if (GetOpenFileNameA(&ofn)) {
+
+        SendMessageA(fileDestinationStaticSource, WM_SETTEXT, 0, (LPARAM)destName);
+
     }
     else {
-        SendMessageW(fileNameStatic, WM_SETTEXT, 0, (LPARAM)L"Selection cancelled");
+
+        SendMessageA(dest, WM_SETTEXT, 0, (LPARAM)L"File open error");
+
     }
+
+
     return 0;
 }
 
-OPENFILENAMEW ofndest; // destination file structure
-// Open destination file
-DWORD CALLBACK OpenDestination(LPVOID params) {
-    HWND hWnd = *((HWND*)params);
-    // killfocus button
-    SendMessageW(buttonDestinationEllissis, WM_KILLFOCUS, 0, 0);
-    WCHAR fname[512] = L"\0";
-    
-    
-    ZeroMemory(&ofndest, sizeof(ofndest));
-    ofndest.lStructSize = sizeof(ofndest);
-    ofndest.hwndOwner = hWnd;
-    ofndest.hInstance = hInst;
-    ofndest.lpstrFile = fname;
-    ofndest.nMaxFile = 512;
-    ofndest.nMaxFileTitle = sizeof(fname);
-    ofndest.lpstrFilter = L"Text files\0*.txt;*.docx;*.pdf\0All files\0*.*\0\0";
-    ofndest.nFilterIndex = 1;
-    if (GetOpenFileNameW(&ofndest)) {
-        
-        PathStripPath(ofndest.lpstrFile);
 
-        file = CreateFileW(fname, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-        if (file == 0)
-        {
-            SendMessageW(fileDestinationStaticSource, WM_SETTEXT, 0, (LPARAM)L"File open error");
-        }
-        else {
-            DWORD fSize;
-            fSize = GetFileSize(file, NULL);
-            if (fSize > 0)
-            {
-                // Set text to fileNameStatic
-                int resp = MessageBoxW(hWnd, L"File already exist. Do you want to save here?", L"Warning", MB_YESNO | MB_ICONWARNING);
-                if (resp == IDYES)
-                {
-                    SendMessageW(fileDestinationStaticSource, WM_SETTEXT, 0, (LPARAM)ofndest.lpstrFile);
-                }
-                else if (resp == IDNO) {
-                    
-                    
-                    
-                    
-                }
-            }
-            else {
-                SendMessageW(fileDestinationStaticSource, WM_SETTEXT, 0, (LPARAM)L"File is empty");
-            }
-            CloseHandle(file);
-        }
+
+DWORD CALLBACK FileSource(LPVOID params) {
+    HWND hWnd = *((HWND*)params);
+
+
+
+    OPENFILENAMEA ofn;
+    ZeroMemory(&ofn, sizeof(OPENFILENAMEA));
+    ofn.lStructSize = sizeof(OPENFILENAMEA);
+    ofn.hwndOwner = hWnd;
+    ofn.hInstance = hInst;
+    ofn.lpstrFile = sourceName;
+    ofn.nMaxFile = 512;
+
+    if (GetOpenFileNameA(&ofn)) {
+
+
+        SendMessageA(fileNameStatic, WM_SETTEXT, 0, (LPARAM)sourceName);
     }
     else {
-        SendMessageW(fileDestinationStaticSource, WM_SETTEXT, 0, (LPARAM)L"Selection cancelled");
+
+        SendMessageA(fileName, WM_SETTEXT, 0, (LPARAM)L"File open error");
+
     }
+
+
     return 0;
+
 }
 
-DWORD CALLBACK SaveFileClick(LPVOID params) {
-    HWND hWnd = *((HWND*)params);
-    WCHAR fname[512];
-    char content[1024] = { '\0' };
-    // достаем контент из едитера
-    //SendMessageA(editor, WM_GETTEXT, 1024, (LPARAM)content);
-    fname[0] = '\0';
+
+DWORD CALLBACK SaveFileClick(LPVOID param) {
+
+    HWND hWnd = *((HWND*)param);
+
+
+
     OPENFILENAMEW ofn;
-    ZeroMemory(&ofn, sizeof(ofn));
-    ofn.lStructSize = sizeof(ofn);
+
+    wchar_t fileName[512] = L"Hello.txt\0";
+
+    ZeroMemory(&ofn, sizeof(OPENFILENAMEW));
+    ofn.lStructSize = sizeof(OPENFILENAMEW);
     ofn.hwndOwner = hWnd;
     ofn.hInstance = hInst;
-    ofn.lpstrFile = fname;
+    ofn.lpstrFile = fileName;
     ofn.nMaxFile = 512;
-    ofn.nMaxFileTitle = sizeof(fname);
-    if (GetOpenFileNameW(&ofn)) {
-        // ставим текст в статик с имени файла
-        //SendMessageW(fNameStatic, WM_SETTEXT, 0, (LPARAM)ofn.lpstrFile);
-        file = CreateFileW(fname, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
-        if (file == 0)
-        {
-            //SendMessageW(editor, WM_SETTEXT, 0, (LPARAM)L"File open error");
-            return -1;
-        }
-        else
-        {
-            DWORD written;
-            if (WriteFile(file, content, strnlen_s(content, 1024), &written, NULL)) {
-                if (written != strnlen_s(content, 1024))
-                {
-                   // SendMessageW(editor, WM_SETTEXT, 0, (LPARAM)L"Error saving");
-                    WCHAR buff[512];
-                    _snwprintf_s(buff, 512, L"written: %d", written);
-                    //SendMessageW(editor, WM_SETTEXT, 0, (LPARAM)buff);
+    ofn.lpstrFilter = L"All Files\0*.*\0Text files\0*.txt\0C/C++ code files\0*.cpp;*.c\0\0";
+    ofn.nFilterIndex = 1;
 
-                }
-                else {
-                    WCHAR buff[512];
-                    _snwprintf_s(buff, 512, L"written: %d", written);
-                    //SendMessageW(editor, WM_SETTEXT, 0, (LPARAM)buff);
-                }
-            }
-            else {
-               // SendMessageW(editor, WM_SETTEXT, 0, (LPARAM)L"Error saving");
-            }
-            CloseHandle(file);
-        }
+    if (!GetSaveFileNameW(&ofn)) {
+
+        MessageBoxA(NULL, "Invalid file name", "Invalid file name", MB_ICONERROR);
     }
+    else {
+
+
+        HANDLE hFile = CreateFileW(fileName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+
+        if (hFile) {
+
+            char content[1024];
+            //SendMessageA(editor, WM_GETTEXT, 1024, (LPARAM)content);
+
+            DWORD write;
+            //WriteFile(hFile, content, strnlen_s(content, 1024), &write, NULL);
+
+            if (!WriteFile(hFile, content, strnlen_s(content, 1024), &write, NULL)) {
+
+                MessageBoxA(hWnd, "write error", "write error", MB_OK | MB_ICONWARNING);
+                if (write != strnlen_s(content, 1024)) {
+
+                    MessageBoxA(hWnd, "write error", "write error", MB_OK | MB_ICONWARNING);
+
+
+                }
+
+            }
+
+
+
+        }
+
+
+
+        CloseHandle(hFile);
+
+    }
+
     return 0;
 }
 
-// Function of checking password
-DWORD CALLBACK EnteringPassword(LPVOID params) {
-    WCHAR thisPassword[512];
-    return 0;
-}
+DWORD CALLBACK CiphFileClick(LPVOID param) {
 
-DWORD CALLBACK Cipher(LPVOID params) {
-    HWND hWnd = *((HWND*)params);
-    SendMessageW(buttonCipher, WM_KILLFOCUS, 0, 0);
-    SetTimer(hWnd, TIMER_FOR_PB, 100, NULL);
+
+    std::ifstream src;
+    std::fstream dest;
+
+    src.open(sourceName, std::fstream::out);
+    dest.open(destName, std::fstream::in);
+
+    std::string buff;
+
+    buff.c_str();
+
+    while (getline(src, buff)) {
+
+
+        dest.write(buff.c_str(), buff.size());
+        //dest.
+
+    }
+
+
+
 
     return 0;
+
 }
