@@ -13,3 +13,10 @@
 #include <malloc.h>
 #include <memory.h>
 #include <tchar.h>
+#include <commdlg.h>
+#include <stdio.h>
+#include <CommCtrl.h>
+#include <string>
+#include <fstream>
+#include <iostream>
+#include <windowsx.h>
