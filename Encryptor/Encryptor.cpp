@@ -1,31 +1,19 @@
-// Encryptor.cpp : 
-
-#pragma comment(lib, "shlwapi.lib")
 #include "framework.h"
 #include "Encryptor.h"
-#include <commdlg.h>
-#include <Shlwapi.h>
-#include <stdio.h>
-#include <CommCtrl.h>
-#include <string>
-#include <fstream>
-#include <iostream>
-#include <windowsx.h>
-
-typedef char (*crypto_t)(char, char);
 
 
 #define MAX_LOADSTRING      100
-/***************************************************************************/
+
+/****************My definitions****************/
 
 #define CMD_CIPHER          1001
 #define CMD_DECIPHER        1002
 #define CMD_DESTINATION     1003
 #define CMD_SOURCE          1004
 #define CMD_STOP_BUTTON     1005
-
 #define TIMER_FOR_PB        2001
 
+typedef char (*crypto_t)(char, char);
 
 /***************Vars***************/
 HINSTANCE hInst;                                
@@ -56,7 +44,7 @@ HMODULE dll;
 char sourceName[512] = "Source.txt";
 char destName[512] = "Dest.txt";
 
-/*Forward declaration - prototype*/
+/*Forward declarations*/
 
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
@@ -64,6 +52,7 @@ LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
 /*************************************************************/
+
 DWORD CALLBACK OpenSource(LPVOID);
 DWORD CALLBACK OpenDestination(LPVOID);
 DWORD CALLBACK CreatingWindow(LPVOID);
@@ -71,6 +60,7 @@ DWORD CALLBACK Cipher(LPVOID);
 DWORD CALLBACK Decipher(LPVOID);
 DWORD CALLBACK StopButton(LPVOID);
 
+/*************************************************************/
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
                      _In_ LPWSTR    lpCmdLine,
@@ -79,14 +69,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
 
-    // TODO: Place code here.
-
-    // Initialize global strings
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hInstance, IDC_ENCRYPTOR, szWindowClass, MAX_LOADSTRING);
-    MyRegisterClass(hInstance);
 
-    // Perform application initialization:
+    MyRegisterClass(hInstance);
     if (!InitInstance (hInstance, nCmdShow))
     {
         return FALSE;
@@ -124,7 +110,7 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     wcex.hInstance      = hInstance;
     wcex.hIcon          = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ENCRYPTOR));
     wcex.hCursor        = LoadCursor(nullptr, IDC_ARROW);
-    wcex.hbrBackground  = CreateSolidBrush(RGB(255, 228, 196));
+    wcex.hbrBackground  = CreateSolidBrush(RGB(255, 248, 220));
     wcex.lpszMenuName   = MAKEINTRESOURCEW(IDC_ENCRYPTOR);
     wcex.lpszClassName  = szWindowClass;
     wcex.hIconSm        = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
@@ -135,7 +121,7 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
-   hInst = hInstance; // Store instance handle in our global variable
+   hInst = hInstance; 
 
    HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW & ~(WS_THICKFRAME | WS_MAXIMIZEBOX),
        ((GetSystemMetrics(SM_CXSCREEN)) - 400) / 2, ((GetSystemMetrics(SM_CYSCREEN)) - 270) / 2, 400, 270, 
@@ -166,6 +152,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
     case WM_CREATE: {
         CreatingWindow(&hWnd);
+        
         break;
     }
     case WM_COMMAND:
@@ -331,7 +318,7 @@ DWORD CALLBACK OpenSource(LPVOID params) {
     }
     else {
 
-        SendMessageA(fileNameStatic, WM_SETTEXT, 0, (LPARAM)L"File open error");
+        SendMessageW(fileNameStatic, WM_SETTEXT, 0, (LPARAM)L"Selection cancelled");
 
     }
 
@@ -356,7 +343,7 @@ DWORD CALLBACK OpenDestination(LPVOID params) {
         SendMessageA(fileDestinationStaticSource, WM_SETTEXT, 0, (LPARAM)destName);
     }
     else {
-        SendMessageA(fileDestinationStaticSource, WM_SETTEXT, 0, (LPARAM)L"File open error");
+        SendMessageW(fileDestinationStaticSource, WM_SETTEXT, 0, (LPARAM)L"Selection cancelled");
     }
 
 
@@ -419,6 +406,11 @@ DWORD CALLBACK Cipher(LPVOID params) {
             while (fread(buffer, sizeof(char), 1, sourceFile) == 1) {
                 if (stop == TRUE)
                 {
+                    fclose(sourceFile);
+                    fclose(destFile);
+                    Sleep(2000);
+                    SendMessageW(progress, PBM_SETPOS, 0, 0);
+                    MessageBoxW(NULL, L"Stopped Ciphering", L"Stopped", MB_OK | MB_ICONERROR);
                     break;
                 }
                 else {
@@ -430,21 +422,22 @@ DWORD CALLBACK Cipher(LPVOID params) {
                     Sleep(100);
                 }
             }
-
+            
+            if (stop == FALSE)
+            {
+                MessageBoxW(NULL, L"Successful Ciphering", L"Success", MB_OK | MB_ICONASTERISK);
+            }
             stop = FALSE;
             fclose(sourceFile);
             fclose(destFile);
             Sleep(2000);
             SendMessageW(progress, PBM_SETPOS, 0, 0);
             SendMessageW(progress, PBM_SETBARCOLOR, 0, RGB(0, 255, 0));
-            MessageBoxW(NULL, L"Successful Ciphering", L"Success", MB_OK | MB_ICONASTERISK);
             Button_Enable(buttonSouceEllissis, TRUE);
             Button_Enable(buttonDestinationEllipssis, TRUE);
             Button_Enable(buttonCipher, TRUE);
             Button_Enable(buttonDecipher, TRUE);
-            
         }
-        
     }
     
     return 0;
@@ -458,6 +451,7 @@ DWORD CALLBACK Decipher(LPVOID params) {
         MessageBoxW(NULL, L"Decipher method not found", L"Error", MB_ICONERROR | MB_OK);
         FreeLibrary(dll);
     }
+    
     Button_Enable(buttonSouceEllissis, FALSE);
     Button_Enable(buttonDestinationEllipssis, FALSE);
     Button_Enable(buttonCipher, FALSE);
@@ -509,15 +503,26 @@ DWORD CALLBACK Decipher(LPVOID params) {
         while (fread(buffer, sizeof(char), 1, sourceFile) == 1) {
             if (stop == TRUE)
             {
+                fclose(sourceFile);
+                fclose(destFile);
+                Sleep(2000);
+                SendMessageW(progress, PBM_SETPOS, 0, 0);
+                MessageBoxW(NULL, L"Stopped Deciphering", L"Stopped", MB_OK | MB_ICONERROR);
                 break;
             }
             else {
                 ++readed;
                 SendMessageW(progress, PBM_DELTAPOS, 1, 0);
                 buffer[0] = decipher(buffer[0], pass[readed % strlen(pass)]);
+
                 fwrite(buffer, sizeof(char), 1, destFile);
                 Sleep(100);
             }
+        }
+
+        if (stop == FALSE)
+        {
+            MessageBoxW(NULL, L"Successful Deciphering", L"Success", MB_OK | MB_ICONASTERISK);
         }
         stop = FALSE;
         fclose(sourceFile);
@@ -525,7 +530,6 @@ DWORD CALLBACK Decipher(LPVOID params) {
         Sleep(2000);
         SendMessageW(progress, PBM_SETPOS, 0, 0);
         SendMessageW(progress, PBM_SETBARCOLOR, 0, RGB(0, 255, 0));
-        MessageBoxW(NULL, L"Successful Deciphering", L"Success", MB_OK | MB_ICONASTERISK);
         Button_Enable(buttonSouceEllissis, TRUE);
         Button_Enable(buttonDestinationEllipssis, TRUE);
         Button_Enable(buttonCipher, TRUE);
