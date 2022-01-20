@@ -41,6 +41,7 @@ HWND source;
 HWND dest;
 BOOL stop = FALSE;
 HMODULE dll;
+HANDLE mutex;
 
 
 char sourceName[512] = "Source.txt";
@@ -153,7 +154,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
     case WM_CREATE: {
         CreatingWindow(&hWnd);
-        
+        mutex = CreateMutex(NULL, FALSE, NULL);
+        if (mutex == NULL) {
+            MessageBoxW(NULL, L"Mutex not created", L"APP STOPPED", MB_ICONWARNING | MB_OK);
+            PostQuitMessage(0);
+            return 0;
+        }
         break;
     }
     case WM_COMMAND:
@@ -247,6 +253,7 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 DWORD CALLBACK CreatingWindow(LPVOID params) {
     HWND hWnd = *((HWND*)params);
     dll = LoadLibraryW(L"Cipher_DLL.dll");
+    WaitForSingleObject(mutex, INFINITE);
     if (dll == NULL) {
 
         if (MessageBoxW(NULL, L"Хотите ли вы найти библиотеку?", L"Библиотека не найдена", MB_YESNO | MB_ICONERROR) == IDYES) {
@@ -322,13 +329,13 @@ DWORD CALLBACK CreatingWindow(LPVOID params) {
     SendMessageW(progress, PBM_SETSTEP, 25, 0);
     SendMessageW(progress, PBM_DELTAPOS, 0, 0);
     SendMessageW(progress, PBM_SETBARCOLOR, 0, RGB(0, 255, 0));
-
+    Release(mutex);
     return 0;
 }
 
 DWORD CALLBACK OpenSource(LPVOID params) {
     HWND hWnd = *((HWND*)params);
-
+    WaitForSingleObject(mutex, INFINITE);
     SendMessageW(buttonSouceEllissis, WM_KILLFOCUS, 0, 0);
 
     OPENFILENAMEA ofn;
@@ -351,11 +358,12 @@ DWORD CALLBACK OpenSource(LPVOID params) {
 
     }
 
-
+    Release(mutex);
     return 0;
 }
 
 DWORD CALLBACK DestinationFileClick(LPVOID params) {
+    WaitForSingleObject(mutex, INFINITE);
     HWND hWnd = *((HWND*)params);
     //const size_t len = strlen(destName) + 1;
     WCHAR fName[512] = L"\0";
@@ -401,11 +409,13 @@ DWORD CALLBACK DestinationFileClick(LPVOID params) {
     else {
         SendMessageW(fileDestinationStaticSource, WM_SETTEXT, 0, (LPARAM)L"Selection cancelled");
     }
+    Release(mutex);
     return 0;
 }
 
 DWORD CALLBACK Cipher(LPVOID params) {
     crypto_t cipher = (crypto_t)GetProcAddress(dll, "Cipher");
+    WaitForSingleObject(mutex, INFINITE);
     if (cipher == NULL)
     {
         MessageBoxW(NULL, L"Cipher method not found", L"Error", MB_ICONERROR | MB_OK);
@@ -487,10 +497,12 @@ DWORD CALLBACK Cipher(LPVOID params) {
     Button_Enable(buttonDestinationEllipssis, TRUE);
     Button_Enable(buttonCipher, TRUE);
     Button_Enable(buttonDecipher, TRUE);
+    Release(mutex);
     return 0;
 }
 
 DWORD CALLBACK Decipher(LPVOID params) {
+    WaitForSingleObject(mutex, INFINITE);
     crypto_t decipher = (crypto_t)GetProcAddress(dll, "Decipher");
     if (decipher == NULL)
     {
@@ -573,6 +585,7 @@ DWORD CALLBACK Decipher(LPVOID params) {
     Button_Enable(buttonDestinationEllipssis, TRUE);
     Button_Enable(buttonCipher, TRUE);
     Button_Enable(buttonDecipher, TRUE);
+    Release(mutex);
     return 0;
 }
 
