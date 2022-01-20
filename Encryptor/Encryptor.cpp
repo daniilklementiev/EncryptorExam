@@ -174,6 +174,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             // Parse the menu selections:
             switch (wmId)
             {
+            case CMD_SOURCE: {
+                CreateThread(NULL, 0, OpenSource, &hWnd, 0, NULL);
+                break;
+            }
+            case CMD_DESTINATION: {
+                CreateThread(NULL, 0, OpenDestination, &hWnd, 0, NULL);
+                break;
+            }
             case CMD_CIPHER: {
                 CreateThread(NULL, 0, Cipher, &hWnd, 0, NULL);
                 break;
@@ -186,14 +194,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 CreateThread(NULL, 0, StopButton, &hWnd, 0, NULL);
                 break;
             }
-            case CMD_SOURCE: {
-                CreateThread(NULL, 0, OpenSource, &hWnd, 0, NULL);
-                break;
-            }
-            case CMD_DESTINATION: {
-                CreateThread(NULL, 0, OpenDestination, &hWnd, 0, NULL);
-                break;
-            }
+            
 
 
             case IDM_ABOUT:
@@ -334,8 +335,6 @@ DWORD CALLBACK OpenSource(LPVOID params) {
         SendMessageA(fileNameStatic, WM_SETTEXT, 0, (LPARAM)L"File open error");
 
     }
-
-
     return 0;
 
 }
@@ -383,10 +382,13 @@ DWORD CALLBACK Cipher(LPVOID params) {
             MessageBoxA(NULL, "Password should be less than 16 characters", "Password is too big", MB_ICONERROR | MB_OK);
         }
         else {
-            FILE* sourceFile;
-            FILE* destFile;
-            sourceFile = fopen(sourceName, "r+");
-            destFile = fopen(destName, "w+");
+            FILE* sourceFile = fopen(sourceName, "r+");
+            FILE* destFile = fopen(destName, "w+");
+            int readed = 0;
+            char buffer[1];
+            int fSize = 0;
+            fSize = ftell(sourceFile);
+            char pass[16];
 
             if (sourceFile) {
                 MessageBoxA(NULL, "Source file already exist. Do you agree to overwrite it?", "File already exists", 
@@ -397,21 +399,10 @@ DWORD CALLBACK Cipher(LPVOID params) {
                 MessageBoxA(NULL, "Destination file already exist. Do you agree to overwrite it?", "File already exists", 
                     MB_ICONWARNING | MB_OK);
             }
-
-
-            char pass[16];
-            SendMessageA(editorPassword, WM_GETTEXT, 0, (LPARAM)pass);
-
-            int readed = 0;
-            char buffer[1];
-
-            int fSize = 0;
             fseek(sourceFile, 0, SEEK_END);
-
-            fSize = ftell(sourceFile);
-
             fseek(sourceFile, 0, SEEK_SET);
 
+            SendMessageA(editorPassword, WM_GETTEXT, 0, (LPARAM)pass);
             SendMessageW(progress, PBM_SETRANGE, 0, MAKELPARAM(0, fSize));
             SendMessageW(progress, PBM_SETBARCOLOR, 0, RGB(0, 255, 0));
 
@@ -434,7 +425,7 @@ DWORD CALLBACK Cipher(LPVOID params) {
             stop = FALSE;
             fclose(sourceFile);
             fclose(destFile);
-            Sleep(2000);
+            Sleep(1111);
             SendMessageW(progress, PBM_SETPOS, 0, 0);
             SendMessageW(progress, PBM_SETBARCOLOR, 0, RGB(0, 255, 0));
             MessageBoxW(NULL, L"Successful Ciphering", L"Success", MB_OK | MB_ICONASTERISK);
@@ -458,80 +449,75 @@ DWORD CALLBACK Decipher(LPVOID params) {
         MessageBoxW(NULL, L"Decipher method not found", L"Error", MB_ICONERROR | MB_OK);
         FreeLibrary(dll);
     }
-    Button_Enable(buttonSouceEllissis, FALSE);
-    Button_Enable(buttonDestinationEllipssis, FALSE);
-    Button_Enable(buttonCipher, FALSE);
-    Button_Enable(buttonDecipher, FALSE);
-    stop = FALSE;
-    if (GetWindowTextLengthA(editorPassword) > 16) {
-
-        MessageBoxA(NULL, "Password should be less than 16 characters", "Password is too big", MB_ICONERROR | MB_OK);
+    if (dll == 0) {
+        MessageBoxW(NULL, L"Error loading DLL", L"DLL Error", MB_ICONERROR | MB_OK);
     }
     else {
-        FILE* sourceFile;
-        sourceFile = fopen(sourceName, "rb+");
+        Button_Enable(buttonSouceEllissis, FALSE);
+        Button_Enable(buttonDestinationEllipssis, FALSE);
+        Button_Enable(buttonCipher, FALSE);
+        Button_Enable(buttonDecipher, FALSE);
+        if (GetWindowTextLengthA(editorPassword) > 16) {
 
-        FILE* destFile;
-        destFile = fopen(destName, "wb+");
-
-
-        if (sourceFile) {
-
-            MessageBoxA(NULL, "Source file already exists it will be overwritten", "Source file already exists",
-                MB_ICONWARNING | MB_OK);
+            MessageBoxA(NULL, "Password should be less than 16 characters", "Password is too big", MB_ICONERROR | MB_OK);
         }
+        else {
+            FILE* sourceFile = fopen(sourceName, "r+");
+            FILE* destFile = fopen(destName, "w+");
+            int readed = 0;
+            char buffer[1];
+            int fSize = 0;
+            fSize = ftell(sourceFile);
+            char pass[16];
 
-        if (destFile) {
-
-            MessageBoxA(NULL, "Destination file already exists it will be overwritten", "Destination file already exists", 
-                MB_ICONWARNING | MB_OK);
-        }
-
-        char pass[16];
-        SendMessageA(editorPassword, WM_GETTEXT, 0, (LPARAM)pass);
-
-
-        int readed = 0;
-        char buffer[1];
-
-        int currSymbol = 0;
-
-        int fSize = 0;
-        fseek(sourceFile, 0, SEEK_END);
-
-        fSize = ftell(sourceFile);
-
-        fseek(sourceFile, 0, SEEK_SET);
-
-        SendMessageW(progress, PBM_SETRANGE, 0, MAKELPARAM(0, fSize));
-        SendMessageW(progress, PBM_SETBARCOLOR, 0, RGB(0, 255, 0));
-
-        while (fread(buffer, sizeof(char), 1, sourceFile) == 1) {
-            if (stop == TRUE)
-            {
-                break;
+            if (sourceFile) {
+                MessageBoxA(NULL, "Source file already exist. Do you agree to overwrite it?", "File already exists",
+                    MB_ICONWARNING | MB_OK);
             }
-            else {
-                ++readed;
-                SendMessageW(progress, PBM_DELTAPOS, 1, 0);
-                buffer[0] = decipher(buffer[0], pass[readed % strlen(pass)]);
-                fwrite(buffer, sizeof(char), 1, destFile);
-                Sleep(100);
+
+            if (destFile) {
+                MessageBoxA(NULL, "Destination file already exist. Do you agree to overwrite it?", "File already exists",
+                    MB_ICONWARNING | MB_OK);
             }
+            fseek(sourceFile, 0, SEEK_END);
+            fseek(sourceFile, 0, SEEK_SET);
+
+            SendMessageA(editorPassword, WM_GETTEXT, 0, (LPARAM)pass);
+            SendMessageW(progress, PBM_SETRANGE, 0, MAKELPARAM(0, fSize));
+            SendMessageW(progress, PBM_SETBARCOLOR, 0, RGB(0, 255, 0));
+
+
+            while (fread(buffer, sizeof(char), 1, sourceFile) == 1) {
+                if (stop == TRUE)
+                {
+                    break;
+                }
+                else {
+                    ++readed;
+                    SendMessageW(progress, PBM_DELTAPOS, 1, 0);
+                    buffer[0] = decipher(buffer[0], pass[readed % strlen(pass)]);
+
+                    fwrite(buffer, sizeof(char), 1, destFile);
+                    Sleep(100);
+                }
+            }
+
+            stop = FALSE;
+            fclose(sourceFile);
+            fclose(destFile);
+            Sleep(1111);
+            SendMessageW(progress, PBM_SETPOS, 0, 0);
+            SendMessageW(progress, PBM_SETBARCOLOR, 0, RGB(0, 255, 0));
+            MessageBoxW(NULL, L"Successful Deciphering", L"Success", MB_OK | MB_ICONASTERISK);
+            Button_Enable(buttonSouceEllissis, TRUE);
+            Button_Enable(buttonDestinationEllipssis, TRUE);
+            Button_Enable(buttonCipher, TRUE);
+            Button_Enable(buttonDecipher, TRUE);
+
         }
-        stop = FALSE;
-        fclose(sourceFile);
-        fclose(destFile);
-        Sleep(2000);
-        SendMessageW(progress, PBM_SETPOS, 0, 0);
-        SendMessageW(progress, PBM_SETBARCOLOR, 0, RGB(0, 255, 0));
-        MessageBoxW(NULL, L"Successful Deciphering", L"Success", MB_OK | MB_ICONASTERISK);
-        Button_Enable(buttonSouceEllissis, TRUE);
-        Button_Enable(buttonDestinationEllipssis, TRUE);
-        Button_Enable(buttonCipher, TRUE);
-        Button_Enable(buttonDecipher, TRUE);
+
     }
-    
+
     return 0;
 }
 
